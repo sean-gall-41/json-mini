@@ -6,7 +6,6 @@ pub enum Token {
     CloseParen(char),
     OpenBrack(char),
     CloseBrack(char),
-    Quote(char), // can denote either open or closed
     Colon(char),
     Comma(char),
     StringLiteral(String),
@@ -25,7 +24,6 @@ impl Token {
                 ')' => return Ok(Token::CloseParen(')')),
                 '[' => return Ok(Token::OpenBrack('[')),
                 ']' => return Ok(Token::CloseBrack(']')),
-                '"' => return Ok(Token::Quote('"')),
                 ':' => return Ok(Token::Colon(':')),
                 ',' => return Ok(Token::Comma(',')),
                 '\0' => return Ok(Token::Eof),
@@ -66,6 +64,11 @@ impl Lexer {
         self.read_pos += 1;
     }
 
+    fn peek_char(&mut self) -> char {
+        if self.read_pos >= self.input.len() { '\0' }
+        else { self.input.chars().nth(self.read_pos).unwrap_or('\0') }
+    }
+
     fn next_token(&mut self) -> Result<Token, &'static str> {
         // simple case: match current token
         let token: Token;
@@ -76,10 +79,28 @@ impl Lexer {
             ')'  => token = Token::CloseParen(')'),
             '['  => token = Token::OpenBrack('['),
             ']'  => token = Token::CloseBrack(']'),
-            '"'  => token = Token::Quote('"'),
             ':'  => token = Token::Colon(':'),
             ','  => token = Token::Comma(','),
             '\0' => token = Token::Eof,
+            '"' => {
+                let mut literal = String::from("");
+                loop {
+                    self.read_char();
+                    if self.ch == '"' { break; }
+                    literal.push(self.ch);
+                }
+                token = Token::StringLiteral(literal);
+            },
+            '0'..='9' => {
+                let mut literal = String::from(self.ch);
+                loop {
+                    let next = self.peek_char();
+                    if !next.is_digit(10) { break; }
+                    literal.push(next);
+                    self.read_char();
+                }
+                token = Token::NumericLiteral(literal);
+            }
             _    => return Err("Unrecognized token")
         }
         self.read_char();
@@ -91,23 +112,19 @@ impl Lexer {
 mod tests {
     #[test]
     fn test_next_token() {
-        let input = String::from("{\"\":\"\",\"\":{},\"\":[]}");
+        let input = String::from(r#"{"field_1":89,"field_2":{},"field_3":[]}"#);
         let expected = vec![
             crate::Token::OpenBrace('{'),
-            crate::Token::Quote('"'),
-            crate::Token::Quote('"'),
+            crate::Token::StringLiteral(String::from("field_1")),
             crate::Token::Colon(':'),
-            crate::Token::Quote('"'),
-            crate::Token::Quote('"'),
+            crate::Token::NumericLiteral(String::from("89")),
             crate::Token::Comma(','),
-            crate::Token::Quote('"'),
-            crate::Token::Quote('"'),
+            crate::Token::StringLiteral(String::from("field_2")),
             crate::Token::Colon(':'),
             crate::Token::OpenBrace('{'),
             crate::Token::CloseBrace('}'),
             crate::Token::Comma(','),
-            crate::Token::Quote('"'),
-            crate::Token::Quote('"'),
+            crate::Token::StringLiteral(String::from("field_3")),
             crate::Token::Colon(':'),
             crate::Token::OpenBrack('['),
             crate::Token::CloseBrack(']'),
