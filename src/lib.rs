@@ -106,6 +106,8 @@ impl Lexer {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::io::Read;
     use super::{Token, Lexer};
 
     const IGNORE_WS: bool = true;
@@ -320,6 +322,34 @@ r#"
             Token::WhiteSpace('\n'),
         ];
         let mut lex = Lexer::from(input, NO_IGNORE_WS);
+        for expected_token in expected.iter() {
+            match lex.next_token() {
+                Err(_) => break,
+                Ok(token) => {
+                    assert_eq!(token, *expected_token);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_next_token_file() {
+        let mut file = fs::File::open("test.json").expect("failed to open 'test.json'");
+        let mut input = String::new();
+        file.read_to_string(&mut input).expect("Failed to read the file 'test.json'");
+        let expected = vec![
+            Token::OpenBrace('{'),
+            Token::StringLiteral(String::from("field_1")),
+            Token::Colon(':'),
+            Token::StringLiteral(String::from("value_1")),
+            Token::Comma(','),
+            Token::StringLiteral(String::from("field_2")),
+            Token::Colon(':'),
+            Token::NumericLiteral(String::from("5772156649")),
+            Token::CloseBrace('}'),
+            Token::Eof
+        ];
+        let mut lex = Lexer::from(input, IGNORE_WS);
         for expected_token in expected.iter() {
             match lex.next_token() {
                 Err(_) => break,
