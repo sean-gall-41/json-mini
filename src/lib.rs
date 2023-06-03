@@ -184,6 +184,41 @@ mod tests {
     }
 
     #[test]
+    fn test_next_token_array() {
+        let input = String::from(r#"
+            {
+                "an_array": [1, 2, 3, 4, 5]
+            }
+        "#);
+        let expected = vec![
+            Token::OpenBrace('{'),
+            Token::StringLiteral(String::from("an_array")),
+            Token::Colon(':'),
+            Token::OpenBrack('['),
+            Token::NumericLiteral(String::from("1")),
+            Token::Comma(','),
+            Token::NumericLiteral(String::from("2")),
+            Token::Comma(','),
+            Token::NumericLiteral(String::from("3")),
+            Token::Comma(','),
+            Token::NumericLiteral(String::from("4")),
+            Token::Comma(','),
+            Token::NumericLiteral(String::from("5")),
+            Token::CloseBrack(']'),
+            Token::CloseBrace('}')
+        ];
+        let mut lex = Lexer::from(input, IGNORE_WS);
+        for expected_token in expected.iter() {
+            match lex.next_token() {
+                Err(_) => break,
+                Ok(token) => {
+                    assert_eq!(token, *expected_token);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_next_token_ignore_ws() {
         let input = String::from(r#"
             {
