@@ -69,7 +69,18 @@ impl Lexer {
         else { self.input.chars().nth(self.read_pos).unwrap_or('\0') }
     }
 
-    fn next_token(&mut self) -> Result<Token, &'static str> {
+    fn next_numeric_literal(&mut self) -> Result<Token, String> {
+        let mut literal = String::from(self.ch);
+        loop {
+            let next = self.peek_char();
+            if !next.is_digit(10) { break; }
+            literal.push(next);
+            self.read_char();
+        }
+        Ok(Token::NumericLiteral(literal))
+    }
+
+    fn next_token(&mut self) -> Result<Token, String> {
         // simple case: match current token
         let token: Token;
         match self.ch {
@@ -92,21 +103,21 @@ impl Lexer {
                 token = Token::StringLiteral(literal);
             },
             '0'..='9' => {
-                let mut literal = String::from(self.ch);
-                loop {
-                    let next = self.peek_char();
-                    if !next.is_digit(10) { break; }
-                    literal.push(next);
-                    self.read_char();
+                token = self.next_numeric_literal().unwrap_or(Token::Eof);
+            },
+            '-' => {
+                if !self.peek_char().is_digit(10) {
+                    return Err(format!("Invalid token '-' found at position {}", self.read_pos));
                 }
-                token = Token::NumericLiteral(literal);
-            }
-            _    => return Err("Unrecognized token")
+                token = self.next_numeric_literal().unwrap_or(Token::Eof);
+            },
+            _    => return Err(String::from("Unrecognized token"))
         }
         self.read_char();
         Ok(token)
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -140,8 +151,30 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_next_token_neg_sign() {
+        let input = String::from(r#"{"field":-a}"#);
+        let expected = vec![
+            crate::Token::OpenBrace('{'),
+            crate::Token::StringLiteral(String::from("field")),
+            crate::Token::Colon(':')
+        ];
+        let mut lex = crate::Lexer::from(input);
+        for expected_token in expected.iter() {
+            match lex.next_token() {
+                Err(err_str) => {
+                    assert_eq!(err_str, String::from("Invalid token '-' found at position 9"));
+                },
+                Ok(token) => {
+                    assert_eq!(token, *expected_token);
+                }
+            }
+        }
+    }
 }
 
 fn main() {
     println!("Hello, world!");
 }
+
