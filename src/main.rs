@@ -153,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn test_next_token_neg_sign() {
+    fn test_next_token_neg_sign_invalid() {
         let input = String::from(r#"{"field":-a}"#);
         let expected = vec![
             crate::Token::OpenBrace('{'),
@@ -166,6 +166,26 @@ mod tests {
                 Err(err_str) => {
                     assert_eq!(err_str, String::from("Invalid token '-' found at position 9"));
                 },
+                Ok(token) => {
+                    assert_eq!(token, *expected_token);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_next_token_neg_sign_valid() {
+        let input = String::from(r#"{"field":-314159}"#);
+        let expected = vec![
+            crate::Token::OpenBrace('{'),
+            crate::Token::StringLiteral(String::from("field")),
+            crate::Token::Colon(':'),
+            crate::Token::NumericLiteral(String::from("-314159")),
+        ];
+        let mut lex = crate::Lexer::from(input);
+        for expected_token in expected.iter() {
+            match lex.next_token() {
+                Err(_) => break,
                 Ok(token) => {
                     assert_eq!(token, *expected_token);
                 }
