@@ -4,12 +4,9 @@ use std::fs::File;
 use std::io::{Read, Error};
 
 mod lib;
-use lib::{Token, Lexer};
+use lib::minify_json;
 
-const IGNORE_WS: bool = true;
-const NO_IGNORE_WS: bool = false;
-
-pub fn get_file_as_str(
+pub fn get_file_as_string(
     mut args: impl Iterator<Item = String>,
 ) -> Result<String, &'static str> {
     args.next(); // first val in env::args() is name of program
@@ -26,17 +23,16 @@ pub fn get_file_as_str(
 
 fn main() -> Result<(), Error> {
 
-	let input_str = get_file_as_str(env::args()).unwrap_or_else(|err| {
+	let input_json = get_file_as_string(env::args()).unwrap_or_else(|err| {
         eprintln!("Problem parsing arguments: {err}");
 		process::exit(1);
 	});
 
-    let mut lexer = Lexer::from(input_str, IGNORE_WS);
-    let lexed_input = lexer.lex().unwrap_or_else(|err| {
-        eprintln!("Problem lexing input: {err}");
-        process::exit(1);
+    let min_json = minify_json(input_json).unwrap_or_else(|err| {
+        eprintln!("Problem parsing arguments: {err}");
+		process::exit(1);
     });
-    println!("{:#?}", lexed_input);
+    println!("{}", min_json);
     Ok(())
 }
 

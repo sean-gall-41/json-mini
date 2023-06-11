@@ -1,4 +1,5 @@
-#[derive(Debug, PartialEq, Eq)]
+// TODO: add boolean token
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
     WhiteSpace(char),
     OpenBrace(char),
@@ -14,19 +15,44 @@ pub enum Token {
     Eof,
 }
 
+impl Token {
+    pub fn extract_value(self) -> String {
+        match self {
+            Token::WhiteSpace(val)  => String::from(val),
+            Token::OpenBrace(val) => String::from(val),
+            Token::CloseBrace(val) => String::from(val),
+            Token::OpenParen(val) => String::from(val),
+            Token::CloseParen(val) => String::from(val),
+            Token::OpenBrack(val) => String::from(val),
+            Token::CloseBrack(val) => String::from(val),
+            Token::Colon(val) => String::from(val),
+            Token::Comma(val) => String::from(val),
+            Token::StringLiteral(val) => val,
+            Token::NumericLiteral(val) => val,
+            Token::Eof => String::from(""),
+        }
+    }
+}
+
+const IGNORE_WS: bool = true;
+const NO_IGNORE_WS: bool = false;
+
+
+
 #[derive(Debug, Default)]
-pub struct Lexer {
+pub struct JSONLexer {
     pub input: String, // what if the json file is massive, like over a few MB?
+    pub lexed_input: Vec<Token>,
     pub pos: usize,
     pub read_pos: usize,
     pub ch: char,
     pub ignore_ws: bool,
 }
 
-impl Lexer {
+impl JSONLexer {
     pub fn from(s: String, ignore_ws: bool) -> Self {
-        let mut lex = Self {
-            input: s,
+        let mut lex = Self { input: s,
+            lexed_input: vec![],
             pos: Default::default(),
             read_pos: Default::default(),
             ch: Default::default(),
@@ -103,32 +129,46 @@ impl Lexer {
         Ok(token)
     }
 
-    pub fn lex(&mut self) -> Result<Vec<Token>, String> {
-        let mut output: Vec<Token> = vec![];
+    pub fn lex(&mut self) -> Result<(), String> {
         loop {
             match self.next_token() {
                 Err(e) => return Err(e),
                 Ok(token) => {
                     if token == Token::Eof {
-                        output.push(token);
+                        self.lexed_input.push(token);
                         break;
                     }
-                    output.push(token);
+                    self.lexed_input.push(token);
                 }
             }
         }
-        Ok(output)
+        Ok(())
     }
+
+    pub fn tokens_to_string(&self) -> String {
+        // do not like the clone here :-/
+        self.lexed_input.clone().into_iter()
+            .map(|token| token.extract_value())
+            .collect::<Vec<String>>()
+            .into_iter()
+            .fold(String::from(""), |acc, tok| acc + &tok)
+    }
+}
+
+pub fn minify_json(in_json: String) -> Result<String, String> {
+    let mut lexer = JSONLexer::from(in_json, IGNORE_WS);
+    match lexer.lex() {
+        Ok(_) => (),
+        Err(err) => return Err(err)
+    }
+    Ok(lexer.tokens_to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use std::fs;
     use std::io::Read;
-    use super::{Token, Lexer};
-
-    const IGNORE_WS: bool = true;
-    const NO_IGNORE_WS: bool = false;
+    use super::{Token, JSONLexer};
 
     #[test]
     fn test_next_token() {
@@ -150,7 +190,7 @@ mod tests {
             Token::CloseBrack(']'),
             Token::CloseBrace('}')
         ];
-        let mut lex = Lexer::from(input, IGNORE_WS);
+        let mut lex = JSONLexer::from(input, IGNORE_WS);
         for expected_token in expected.iter() {
             match lex.next_token() {
                 Err(_) => break,
@@ -169,7 +209,7 @@ mod tests {
             Token::StringLiteral(String::from("field")),
             Token::Colon(':')
         ];
-        let mut lex = Lexer::from(input, IGNORE_WS);
+        let mut lex = JSONLexer::from(input, IGNORE_WS);
         for expected_token in expected.iter() {
             match lex.next_token() {
                 Err(err_str) => {
@@ -191,7 +231,7 @@ mod tests {
             Token::Colon(':'),
             Token::NumericLiteral(String::from("-314159")),
         ];
-        let mut lex = Lexer::from(input, IGNORE_WS);
+        let mut lex = JSONLexer::from(input, IGNORE_WS);
         for expected_token in expected.iter() {
             match lex.next_token() {
                 Err(_) => break,
@@ -226,7 +266,7 @@ mod tests {
             Token::CloseBrack(']'),
             Token::CloseBrace('}')
         ];
-        let mut lex = Lexer::from(input, IGNORE_WS);
+        let mut lex = JSONLexer::from(input, IGNORE_WS);
         for expected_token in expected.iter() {
             match lex.next_token() {
                 Err(_) => break,
@@ -268,7 +308,7 @@ mod tests {
             Token::CloseBrace('}'),
             Token::CloseBrace('}'),
         ];
-        let mut lex = Lexer::from(input, IGNORE_WS);
+        let mut lex = JSONLexer::from(input, IGNORE_WS);
         for expected_token in expected.iter() {
             match lex.next_token() {
                 Err(_) => break,
@@ -338,7 +378,7 @@ r#"
             Token::CloseBrace('}'),
             Token::WhiteSpace('\n'),
         ];
-        let mut lex = Lexer::from(input, NO_IGNORE_WS);
+        let mut lex = JSONLexer::from(input, NO_IGNORE_WS);
         for expected_token in expected.iter() {
             match lex.next_token() {
                 Err(_) => break,
@@ -366,7 +406,7 @@ r#"
             Token::CloseBrace('}'),
             Token::Eof
         ];
-        let mut lex = Lexer::from(input, IGNORE_WS);
+        let mut lex = JSONLexer::from(input, IGNORE_WS);
         for expected_token in expected.iter() {
             match lex.next_token() {
                 Err(_) => break,
