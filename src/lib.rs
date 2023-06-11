@@ -97,10 +97,27 @@ impl Lexer {
                 }
                 token = self.next_numeric_literal().unwrap_or(Token::Eof);
             },
-            _    => return Err(String::from("Unrecognized token"))
+            _ => return Err(String::from("Unrecognized token"))
         }
         self.read_char();
         Ok(token)
+    }
+
+    pub fn lex(&mut self) -> Result<Vec<Token>, String> {
+        let mut output: Vec<Token> = vec![];
+        loop {
+            match self.next_token() {
+                Err(e) => return Err(e),
+                Ok(token) => {
+                    if token == Token::Eof {
+                        output.push(token);
+                        break;
+                    }
+                    output.push(token);
+                }
+            }
+        }
+        Ok(output)
     }
 }
 
