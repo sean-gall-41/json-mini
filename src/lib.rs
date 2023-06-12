@@ -11,7 +11,8 @@ pub enum Token {
     Colon(char),
     Comma(char),
     StringLiteral(String),
-    NumericLiteral(String), // we'll parse later
+    NumericLiteral(String),
+    BoolLiteral(String),
     Eof,
 }
 
@@ -29,6 +30,7 @@ impl Token {
             Token::Comma(val) => String::from(val),
             Token::StringLiteral(val) => val,
             Token::NumericLiteral(val) => val,
+            Token::BoolLiteral(val) => val,
             Token::Eof => String::from(""),
         }
     }
@@ -36,8 +38,6 @@ impl Token {
 
 const IGNORE_WS: bool = true;
 const NO_IGNORE_WS: bool = false;
-
-
 
 #[derive(Debug, Default)]
 pub struct JSONLexer {
@@ -69,9 +69,28 @@ impl JSONLexer {
         self.read_pos += 1;
     }
 
+    pub fn read_n_chars(&mut self, n: usize) {
+        if self.read_pos + n >= self.input.len() {
+            eprintln!("The Requested number of characters to read is beyond the end of the input buffer!");
+            self.ch = '\0';
+        }
+        else {
+            self.ch = self.input.chars().nth(self.read_pos+n).unwrap_or('\0');
+            self.pos = self.read_pos; // this might be a bug, I'm not sure
+            self.read_pos += n;
+        }
+    }
+
     pub fn peek_char(&mut self) -> char {
         if self.read_pos >= self.input.len() { '\0' }
         else { self.input.chars().nth(self.read_pos).unwrap_or('\0') }
+    }
+
+    pub fn peek_n_chars(&mut self, n: usize) -> Result<&str, String> {
+        if self.read_pos + n >= self.input.len() {
+            Err(String::from("The Requested number of characters to peek is beyond the end of the input buffer!"))
+        }
+        else { Ok(&self.input[self.read_pos..(self.read_pos+n)]) }
     }
 
     pub fn next_numeric_literal(&mut self) -> Result<Token, String> {
@@ -83,6 +102,36 @@ impl JSONLexer {
             self.read_char();
         }
         Ok(Token::NumericLiteral(literal))
+    }
+
+    // TODO: test this function because dear-god it needs a refactor
+    pub fn next_bool_literal(&mut self) -> Result<Token, String> {
+        match self.peek_char() {
+            't' => {
+                let test_view: &str = self.peek_n_chars(4).unwrap_or_else(|err| {
+                    eprintln!("{}", err);
+                    ""
+                });
+                if test_view == "true" {
+                    self.read_n_chars(4);
+                    Ok(Token::BoolLiteral(String::from("true")))
+                } else {
+                    Err(format!("Invalid token '{}' found at position {}", String::from(test_view), self.read_pos))
+                }
+            },
+            'f' => {
+                let test_view: &str = self.peek_n_chars(5).unwrap_or_else(|err| {
+                    eprintln!("{}", err);
+                    ""
+                });
+                if test_view == "false" {
+                    self.read_n_chars(5);
+                    Ok(Token::BoolLiteral(String::from("false")))
+                }
+                else { Err(format!("Invalid token '{}' found at position {}", String::from(test_view), self.read_pos)) }
+            }
+            _ => { Err(String::from("Unrecognized token")) }
+        }
     }
 
     pub fn next_token(&mut self) -> Result<Token, String> {
@@ -123,7 +172,12 @@ impl JSONLexer {
                 }
                 token = self.next_numeric_literal().unwrap_or(Token::Eof);
             },
-            _ => return Err(String::from("Unrecognized token"))
+            _ => {
+                token = self.next_bool_literal().unwrap_or_else(|err| {
+                    eprintln!("{}", err);
+                    Token::Eof
+                })
+            }
         }
         self.read_char();
         Ok(token)

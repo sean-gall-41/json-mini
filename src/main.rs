@@ -22,7 +22,6 @@ pub fn get_file_as_string(
 }
 
 fn main() -> Result<(), Error> {
-
 	let input_json = get_file_as_string(env::args()).unwrap_or_else(|err| {
         eprintln!("Problem parsing arguments: {err}");
 		process::exit(1);
