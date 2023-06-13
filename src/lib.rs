@@ -104,33 +104,32 @@ impl JSONLexer {
         Ok(Token::NumericLiteral(literal))
     }
 
-    // TODO: test this function because dear-god it needs a refactor
     pub fn next_bool_literal(&mut self) -> Result<Token, String> {
-        match self.peek_char() {
+        match self.ch {
             't' => {
-                let test_view: &str = self.peek_n_chars(4).unwrap_or_else(|err| {
+                let test_view: &str = self.peek_n_chars(3).unwrap_or_else(|err| {
                     eprintln!("{}", err);
                     ""
                 });
-                if test_view == "true" {
-                    self.read_n_chars(4);
+                if "t".to_owned() + test_view == "true" {
+                    self.read_n_chars(3);
                     Ok(Token::BoolLiteral(String::from("true")))
                 } else {
                     Err(format!("Invalid token '{}' found at position {}", String::from(test_view), self.read_pos))
                 }
             },
             'f' => {
-                let test_view: &str = self.peek_n_chars(5).unwrap_or_else(|err| {
+                let test_view: &str = self.peek_n_chars(4).unwrap_or_else(|err| {
                     eprintln!("{}", err);
                     ""
                 });
-                if test_view == "false" {
-                    self.read_n_chars(5);
+                if "f".to_owned() + test_view == "false" {
+                    self.read_n_chars(4);
                     Ok(Token::BoolLiteral(String::from("false")))
                 }
                 else { Err(format!("Invalid token '{}' found at position {}", String::from(test_view), self.read_pos)) }
             }
-            _ => { Err(String::from("Unrecognized token")) }
+            _ => { Err(String::from("Unrecognized token under cursor")) }
         }
     }
 
@@ -223,6 +222,7 @@ mod tests {
     use std::fs;
     use std::io::Read;
     use super::{Token, JSONLexer};
+    use super::{IGNORE_WS, NO_IGNORE_WS};
 
     #[test]
     fn test_next_token() {
@@ -461,6 +461,59 @@ r#"
             Token::Eof
         ];
         let mut lex = JSONLexer::from(input, IGNORE_WS);
+        for expected_token in expected.iter() {
+            match lex.next_token() {
+                Err(_) => break,
+                Ok(token) => {
+                    assert_eq!(token, *expected_token);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_next_bool_literal_no_ws() {
+        let input = String::from(r#"{"field_1": true, "field_2": false}"#);
+        let expected = vec![
+            Token::OpenBrace('{'),
+            Token::StringLiteral(String::from("field_1")),
+            Token::Colon(':'),
+            Token::BoolLiteral(String::from("true")),
+            Token::Comma(','),
+            Token::StringLiteral(String::from("field_2")),
+            Token::Colon(':'),
+            Token::BoolLiteral(String::from("false")),
+            Token::CloseBrace('}'),
+        ];
+        let mut lex = JSONLexer::from(input, IGNORE_WS);
+        for expected_token in expected.iter() {
+            match lex.next_token() {
+                Err(_) => break,
+                Ok(token) => {
+                    assert_eq!(token, *expected_token);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_next_bool_literal_ws() {
+        let input = String::from(r#"{"field_1": true, "field_2": false}"#);
+        let expected = vec![
+            Token::OpenBrace('{'),
+            Token::StringLiteral(String::from("field_1")),
+            Token::Colon(':'),
+            Token::WhiteSpace(' '),
+            Token::BoolLiteral(String::from("true")),
+            Token::Comma(','),
+            Token::WhiteSpace(' '),
+            Token::StringLiteral(String::from("field_2")),
+            Token::Colon(':'),
+            Token::WhiteSpace(' '),
+            Token::BoolLiteral(String::from("false")),
+            Token::CloseBrace('}'),
+        ];
+        let mut lex = JSONLexer::from(input, NO_IGNORE_WS);
         for expected_token in expected.iter() {
             match lex.next_token() {
                 Err(_) => break,

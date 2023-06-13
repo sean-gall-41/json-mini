@@ -32,6 +32,7 @@ fn main() -> Result<(), Error> {
 		process::exit(1);
     });
     println!("{}", min_json);
+
     Ok(())
 }
 
