@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{Read, Error};
 
 mod lib;
-use lib::minify_json;
+use lib::{minify_json, prettify_json};
 
 pub fn get_file_as_string(
     mut args: impl Iterator<Item = String>,
@@ -22,17 +22,23 @@ pub fn get_file_as_string(
 }
 
 fn main() -> Result<(), Error> {
-	let input_json = get_file_as_string(env::args()).unwrap_or_else(|err| {
-        eprintln!("Problem parsing arguments: {err}");
-		process::exit(1);
-	});
+	//let input_json = get_file_as_string(env::args()).unwrap_or_else(|err| {
+    //    eprintln!("Problem parsing arguments: {err}");
+	//	process::exit(1);
+	//});
 
-    let min_json = minify_json(input_json).unwrap_or_else(|err| {
-        eprintln!("Problem parsing arguments: {err}");
-		process::exit(1);
+    //let min_json = minify_json(input_json).unwrap_or_else(|err| {
+    //    eprintln!("Problem parsing arguments: {err}");
+	//	process::exit(1);
+    //});
+    //println!("{}", min_json);
+
+    let input_json = String::from(r#"{"field_1":10}"#);
+    let pretty_json = prettify_json(input_json).unwrap_or_else(|err| {
+        eprintln!("Problem during prettification");
+        process::exit(1);
     });
-    println!("{}", min_json);
-
+    println!("{}", pretty_json);
     Ok(())
 }
 

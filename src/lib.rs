@@ -217,6 +217,91 @@ pub fn minify_json(in_json: String) -> Result<String, String> {
     Ok(lexer.tokens_to_string())
 }
 
+/* TODO: add in a config param that is either a hash set or a JSON obj
+ * For Now, we need a default format.
+ * 1) open curly braces, square brackets and parentheses are always followed by a new line and depth
+ *    level is incremented. They will be on the same line if they are encountered on a line with
+ *    preceding content
+ * 2) closed curly braces, square brackets, and parentheses are followed by a new line and depth
+ *    level is decremented
+ * 3) each element of an array is on its own line
+ * 4) each key pair value of a json object is on its own line unless the value is an object or an
+ *    array (see 1 and 2)
+ * 5) closed curly braces, square brackets and parentheses on their own lines
+ *
+ * as an example, consider the following JSON string: "{"field_1": {"inner_field_1": "inner_value_1"}, "field_2": [1,2,3]}"
+ * it would be formatted as follows:
+ *
+ * {
+ *    "field_1": {
+ *       "inner_filed_1": "inner_value_1"
+ *    },
+ *    "field_2": [
+ *       1,
+ *       2,
+ *       3
+ *    ]
+ * }
+ *
+ */
+
+//FIXME: re-think the ws token inserting alg
+pub fn prettify_json(in_json: String) -> Result<String, String> {
+    let mut lexer = JSONLexer::from(in_json, IGNORE_WS);
+    match lexer.lex() {
+        Ok(_) => (),
+        Err(err) => return Err(err)
+    }
+    // collect the items and locations to insert
+    let mut to_insert: Vec<(usize, Token)> = vec![];
+    let mut depth = 0u32;
+    for (i, token) in lexer.lexed_input.iter().enumerate() {
+        match token {
+            Token::OpenBrace(char) | Token::OpenParen(char) | Token::OpenBrack(char) => {
+                to_insert.push((i as usize, Token::WhiteSpace('\n')));
+                depth += 1;
+                for j in 0..depth {
+                    to_insert.push((i + j as usize, Token::WhiteSpace(' ')));
+                }
+            },
+            Token::CloseBrace(char) | Token::CloseParen(char) | Token::CloseBrack(char) => {
+                if lexer.lexed_input[i+1] == Token::Comma(',') { continue; }
+                to_insert.push((i as usize, Token::WhiteSpace('\n')));
+                for j in 0..depth {
+                    to_insert.push((i + j as usize, Token::WhiteSpace(' ')));
+                }
+                depth -= 1;
+            },
+            Token::Colon(char) => {
+                to_insert.push((i as usize, Token::WhiteSpace(' ')));
+            }
+            Token::Comma(char) => {
+                to_insert.push((i as usize, Token::WhiteSpace('\n')));
+                for j in 0..depth {
+                    to_insert.push((i + j as usize, Token::WhiteSpace(' ')));
+                }
+            },
+            _ => ()
+        }
+    }
+    // adjust the location indices due to offset every time you insert
+    let mut accum = 1usize;
+    to_insert = to_insert.into_iter()
+        .map(|(i, token)| {
+            let new_id = i + accum;
+            accum += 1;
+            (new_id, token)
+        })
+        .collect::<Vec<(usize, Token)>>();
+
+    // insert them thangs
+    for (index, token) in to_insert {
+        lexer.lexed_input.insert(index, token);
+    }
+    println!("{:?}", lexer.lexed_input);
+    Ok(lexer.tokens_to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
