@@ -233,10 +233,10 @@ pub fn minify_json(in_json: String) -> Result<String, String> {
  * it would be formatted as follows:
  *
  * {
- *    "field_1": {
- *       "inner_filed_1": "inner_value_1"
+ *    "field_1":{
+ *       "inner_filed_1":"inner_value_1"
  *    },
- *    "field_2": [
+ *    "field_2":[
  *       1,
  *       2,
  *       3
@@ -245,7 +245,6 @@ pub fn minify_json(in_json: String) -> Result<String, String> {
  *
  */
 
-//FIXME: re-think the ws token inserting alg
 pub fn prettify_json(in_json: String) -> Result<String, String> {
     let mut lexer = JSONLexer::from(in_json, IGNORE_WS);
     match lexer.lex() {

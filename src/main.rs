@@ -33,7 +33,7 @@ fn main() -> Result<(), Error> {
     });
     println!("{}", min_json);
 
-    let input = String::from(r#"{"field_1":{"inner_field":69},"field_2":[1,2,3,4]}"#);
+    let input = String::from(r#"{"field_1": {"inner_field_1": "inner_value_1"}, "field_2": [1,2,3]}"#);
     let pretty = prettify_json(input).unwrap_or_else(|err| {
         eprintln!("something went wrong while prettifying");
         process::exit(1);
