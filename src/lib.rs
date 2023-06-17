@@ -254,51 +254,74 @@ pub fn prettify_json(in_json: String) -> Result<String, String> {
     }
     // collect the items and locations to insert
     let mut to_insert: Vec<(usize, Token)> = vec![];
+    let mut i = 0usize;
     let mut depth = 0u32;
-    for (i, token) in lexer.lexed_input.iter().enumerate() {
+    let mut accum = 1usize;
+    let mut peekable = lexer.lexed_input.iter().peekable();
+    while let Some(token) = peekable.next() {
         match token {
-            Token::OpenBrace(char) | Token::OpenParen(char) | Token::OpenBrack(char) => {
-                to_insert.push((i as usize, Token::WhiteSpace('\n')));
+            Token::OpenBrace(_) | Token::OpenParen(_) | Token::OpenBrack(_) => {
+                to_insert.push((i + accum, Token::WhiteSpace('\n')));
                 depth += 1;
+                accum += 1;
                 for j in 0..depth {
-                    to_insert.push((i + j as usize, Token::WhiteSpace(' ')));
+                    to_insert.push((i + accum, Token::WhiteSpace(' ')));
+                    accum += 1;
                 }
             },
-            Token::CloseBrace(char) | Token::CloseParen(char) | Token::CloseBrack(char) => {
-                if lexer.lexed_input[i+1] == Token::Comma(',') { continue; }
-                to_insert.push((i as usize, Token::WhiteSpace('\n')));
-                for j in 0..depth {
-                    to_insert.push((i + j as usize, Token::WhiteSpace(' ')));
-                }
+            Token::CloseBrace(_) | Token::CloseParen(_) | Token::CloseBrack(_) => {
+                to_insert.push((i + accum - 1, Token::WhiteSpace('\n')));
+                accum += 1;
                 depth -= 1;
+                if let Some(token) = peekable.peek() {
+                    match token {
+                        Token::Eof => continue,
+                        _ => {
+                            for j in 0..depth {
+                                to_insert.push((i + accum - 1, Token::WhiteSpace(' ')));
+                                accum += 1;
+                            }
+                        }
+                    }
+                }
             },
-            Token::Colon(char) => {
-                to_insert.push((i as usize, Token::WhiteSpace(' ')));
-            }
+            Token::NumericLiteral(_) => {
+                if let Some(token) = peekable.peek() {
+                    match token {
+                        Token::Comma(_) => {
+                            to_insert.push((i + accum + 1, Token::WhiteSpace('\n')));
+                            accum += 1;
+                            for j in 0..depth {
+                                to_insert.push((i + accum + 1, Token::WhiteSpace(' ')));
+                                accum += 1;
+                            }
+                        },
+                        _ => ()
+                    }
+                }
+            },
             Token::Comma(char) => {
-                to_insert.push((i as usize, Token::WhiteSpace('\n')));
-                for j in 0..depth {
-                    to_insert.push((i + j as usize, Token::WhiteSpace(' ')));
+                if let Some(token) = peekable.peek() {
+                    match token {
+                        Token::StringLiteral(_) => {
+                            to_insert.push((i + accum, Token::WhiteSpace('\n')));
+                            accum += 1;
+                            for j in 0..depth {
+                                to_insert.push((i + accum, Token::WhiteSpace(' ')));
+                                accum += 1;
+                            }
+                        },
+                        _ => ()
+                    }
                 }
             },
             _ => ()
         }
+        i += 1
     }
-    // adjust the location indices due to offset every time you insert
-    let mut accum = 1usize;
-    to_insert = to_insert.into_iter()
-        .map(|(i, token)| {
-            let new_id = i + accum;
-            accum += 1;
-            (new_id, token)
-        })
-        .collect::<Vec<(usize, Token)>>();
-
-    // insert them thangs
-    for (index, token) in to_insert {
-        lexer.lexed_input.insert(index, token);
+    for (id, token) in to_insert {
+        lexer.lexed_input.insert(id, token);
     }
-    println!("{:?}", lexer.lexed_input);
     Ok(lexer.tokens_to_string())
 }
 
@@ -308,6 +331,7 @@ mod tests {
     use std::io::Read;
     use super::{Token, JSONLexer};
     use super::{IGNORE_WS, NO_IGNORE_WS};
+    use super::{prettify_json};
 
     #[test]
     fn test_next_token() {
@@ -607,6 +631,34 @@ r#"
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_json_minify_one_var_simple() {
+        let input = String::from(r#"{"field":10}"#);
+        let pretty = prettify_json(input).unwrap_or(String::from(""));
+        assert_eq!(pretty, String::from("{\n \"field\":10\n}"));
+    }
+
+    #[test]
+    fn test_json_minify_one_var_arr() {
+        let input = String::from(r#"{"field":[1,2,3,4]}"#);
+        let pretty = prettify_json(input).unwrap_or(String::from(""));
+        assert_eq!(pretty, String::from("{\n \"field\":[\n  1,\n  2,\n  3,\n  4\n ]\n}"));
+    }
+
+    #[test]
+    fn test_json_minify_one_var_inner_obj() {
+        let input = String::from(r#"{"field":{"inner_field":[]}}"#);
+        let pretty = prettify_json(input).unwrap_or(String::from(""));
+        assert_eq!(pretty, String::from("{\n \"field\":{\n  \"inner_field\":[\n   \n  ]\n }\n}"));
+    }
+
+    #[test]
+    fn test_json_minify_one_var_inner_obj_and_arr() {
+        let input = String::from(r#"{"field_1":{"inner_field":69},"field_2":[1,2,3,4]}"#);
+        let pretty = prettify_json(input).unwrap_or(String::from(""));
+        assert_eq!(pretty, String::from("{\n \"field_1\":{\n  \"inner_field\":69\n },\n \"field_2\":[\n  1,\n  2,\n  3,\n  4\n ]\n}"));
     }
 }
 
