@@ -183,15 +183,12 @@ impl JSONLexer {
 
     pub fn lex(&mut self) -> Result<(), String> {
         loop {
-            match self.next_token() {
-                Err(e) => return Err(e),
-                Ok(token) => {
-                    if token == Token::Eof {
-                        self.lexed_input.push(token);
-                        break;
-                    }
+            if let token = self.next_token()? {
+                if token == Token::Eof {
                     self.lexed_input.push(token);
+                    break;
                 }
+                self.lexed_input.push(token);
             }
         }
         Ok(())
@@ -209,19 +206,13 @@ impl JSONLexer {
 
 pub fn minify_json(in_json: String) -> Result<String, String> {
     let mut lexer = JSONLexer::from(in_json, IGNORE_WS);
-    match lexer.lex() {
-        Ok(_) => (),
-        Err(err) => return Err(err)
-    }
+    lexer.lex()?;
     Ok(lexer.tokens_to_string())
 }
 
 pub fn prettify_json(in_json: String) -> Result<String, String> {
     let mut lexer = JSONLexer::from(in_json, IGNORE_WS);
-    match lexer.lex() {
-        Ok(_) => (),
-        Err(err) => return Err(err)
-    }
+    lexer.lex()?;
     // collect the items and locations to insert
     let mut to_insert: Vec<(usize, Token)> = vec![];
     let mut i = 0usize;
