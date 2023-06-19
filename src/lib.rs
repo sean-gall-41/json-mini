@@ -75,7 +75,7 @@ impl JSONLexer {
         }
         else {
             self.ch = self.input.chars().nth(self.read_pos+n).unwrap_or('\0');
-            self.pos = self.read_pos; // this might be a bug, I'm not sure
+            self.pos = self.read_pos;
             self.read_pos += n;
         }
     }
@@ -106,10 +106,7 @@ impl JSONLexer {
     pub fn next_bool_literal(&mut self) -> Result<Token, String> {
         match self.ch {
             't' => {
-                let test_view: &str = self.peek_n_chars(3).unwrap_or_else(|err| {
-                    eprintln!("{}", err);
-                    ""
-                });
+                let test_view: &str = self.peek_n_chars(3)?;
                 if "t".to_owned() + test_view == "true" {
                     self.read_n_chars(3);
                     Ok(Token::BoolLiteral(String::from("true")))
@@ -118,10 +115,7 @@ impl JSONLexer {
                 }
             },
             'f' => {
-                let test_view: &str = self.peek_n_chars(4).unwrap_or_else(|err| {
-                    eprintln!("{}", err);
-                    ""
-                });
+                let test_view: &str = self.peek_n_chars(4)?;
                 if "f".to_owned() + test_view == "false" {
                     self.read_n_chars(4);
                     Ok(Token::BoolLiteral(String::from("false")))
