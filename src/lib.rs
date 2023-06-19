@@ -216,34 +216,6 @@ pub fn minify_json(in_json: String) -> Result<String, String> {
     Ok(lexer.tokens_to_string())
 }
 
-/* TODO: add in a config param that is either a hash set or a JSON obj
- * For Now, we need a default format.
- * 1) open curly braces, square brackets and parentheses are always followed by a new line and depth
- *    level is incremented. They will be on the same line if they are encountered on a line with
- *    preceding content
- * 2) closed curly braces, square brackets, and parentheses are followed by a new line and depth
- *    level is decremented
- * 3) each element of an array is on its own line
- * 4) each key pair value of a json object is on its own line unless the value is an object or an
- *    array (see 1 and 2)
- * 5) closed curly braces, square brackets and parentheses on their own lines
- *
- * as an example, consider the following JSON string: "{"field_1": {"inner_field_1": "inner_value_1"}, "field_2": [1,2,3]}"
- * it would be formatted as follows:
- *
- * {
- *    "field_1":{
- *       "inner_filed_1":"inner_value_1"
- *    },
- *    "field_2":[
- *       1,
- *       2,
- *       3
- *    ]
- * }
- *
- */
-
 pub fn prettify_json(in_json: String) -> Result<String, String> {
     let mut lexer = JSONLexer::from(in_json, IGNORE_WS);
     match lexer.lex() {
