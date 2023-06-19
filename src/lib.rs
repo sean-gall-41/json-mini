@@ -284,25 +284,10 @@ pub fn prettify_json(in_json: String) -> Result<String, String> {
                     }
                 }
             },
-            Token::NumericLiteral(_) => {
-                if let Some(token) = peekable.peek() {
-                    match token {
-                        Token::Comma(_) => {
-                            to_insert.push((i + accum + 1, Token::WhiteSpace('\n')));
-                            accum += 1;
-                            for j in 0..depth {
-                                to_insert.push((i + accum + 1, Token::WhiteSpace(' ')));
-                                accum += 1;
-                            }
-                        },
-                        _ => ()
-                    }
-                }
-            },
             Token::Comma(char) => {
                 if let Some(token) = peekable.peek() {
                     match token {
-                        Token::StringLiteral(_) => {
+                        Token::StringLiteral(_) | Token::NumericLiteral(_) | Token::BoolLiteral(_) | Token::OpenBrace(_) => {
                             to_insert.push((i + accum, Token::WhiteSpace('\n')));
                             accum += 1;
                             for j in 0..depth {
@@ -654,10 +639,17 @@ r#"
     }
 
     #[test]
-    fn test_json_minify_one_var_inner_obj_and_arr() {
+    fn test_json_minify_one_var_inner_obj_and_num_arr() {
         let input = String::from(r#"{"field_1":{"inner_field":69},"field_2":[1,2,3,4]}"#);
         let pretty = prettify_json(input).unwrap_or(String::from(""));
         assert_eq!(pretty, String::from("{\n \"field_1\":{\n  \"inner_field\":69\n },\n \"field_2\":[\n  1,\n  2,\n  3,\n  4\n ]\n}"));
+    }
+
+    #[test]
+    fn test_json_minify_one_var_inner_obj_and_bool_arr() {
+        let input = String::from(r#"{"field_1":{"inner_field":69},"field_2":[true,false,true]}"#);
+        let pretty = prettify_json(input).unwrap_or(String::from(""));
+        assert_eq!(pretty, String::from("{\n \"field_1\":{\n  \"inner_field\":69\n },\n \"field_2\":[\n  true,\n  false,\n  true\n ]\n}"));
     }
 }
 
