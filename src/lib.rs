@@ -1,4 +1,3 @@
-// TODO: add boolean token
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
     WhiteSpace(char),
